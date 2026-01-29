@@ -71,6 +71,24 @@ inputs:
       for detailed output showing what's being updated.
     required: false
     default: 'false'
+  signature-check:
+    description: >-
+      Verify signatures of downloaded packages.
+
+
+      When `true` (default), MacPorts will verify signatures of downloaded
+      packages before installation.
+
+
+      Set to `false` to bypass signature verification. This can be useful
+      if certain ports fail with "Failed to verify signature for archive"
+      errors.
+
+
+      **Warning:** Disabling signature verification reduces security.
+      Only use this if you trust the package sources.
+    required: false
+    default: 'true'
 outputs:
   package:
     value: ${{ steps.configure-macports.outputs.package }}
@@ -119,6 +137,7 @@ runs:
       env:
         TOPLEVELDIR: ${{ github.action_path }}
         PREPEND_PATHS: ${{ inputs.prepend-paths }}
+        SIGNATURE_CHECK: ${{ inputs.signature-check }}
       run: |
         ${{ github.action_path }}/configure_macports "${{ inputs.parameters }}"
     - name: 'Cache MacPorts Installation'

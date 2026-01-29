@@ -16,6 +16,7 @@
 : ${TOPLEVELDIR:=$(git rev-parse --show-toplevel)}
 : ${subrdir:=${TOPLEVELDIR}/subr}
 : ${PREPEND_PATHS:='true'}
+: ${SIGNATURE_CHECK:='true'}
 
 . "${subrdir}/stdlib.sh"
 . "${subrdir}/macos.sh"
@@ -121,6 +122,17 @@ main()
     write_configuration "${parameterfile}" "${macports_prefix}/etc/setup-macports.yaml"
     write_variants "${macports_prefix}/etc/setup-macports.yaml"
     write_sources "${macports_prefix}/etc/setup-macports.yaml"
+
+    # Write macports.conf with signature_check setting
+    macports_install -d -m 755 "${macports_prefix}/etc/macports"
+    local macports_conf="${macports_prefix}/etc/macports/macports.conf"
+    macports_install -m 644 /dev/null "${macports_conf}"
+    # Set signature_check based on SIGNATURE_CHECK environment variable
+    if [ "${SIGNATURE_CHECK}" = 'true' ]; then
+	printf 'signature_check yes\n' >> "${macports_conf}"
+    else
+	printf 'signature_check no\n' >> "${macports_conf}"
+    fi
 
     # Check if using git sources for output
     # Auto-detect if .macports-ports exists in workspace
