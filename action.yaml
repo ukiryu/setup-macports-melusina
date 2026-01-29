@@ -184,14 +184,15 @@ runs:
         # is created lazily on first port command. Initialize it now.
         echo "Creating portdbpath directory structure..."
         sudo mkdir -p "${{ steps.configure-macports.outputs.prefix }}/var/macports/portdbpath/registry"
+        echo "Setting ownership to macports:macports..."
         sudo chown -R macports:macports "${{ steps.configure-macports.outputs.prefix }}/var/macports/portdbpath"
-        echo "Creating empty registry database..."
-        sudo -u macports touch "${{ steps.configure-macports.outputs.prefix }}/var/macports/portdbpath/registry/registry.db"
-        echo "Verifying port command works..."
-        "${{ steps.configure-macports.outputs.prefix }}/bin/port" version || {
-          echo "Warning: Failed to run port version"
+        echo "Initializing MacPorts registry with port selfupdate..."
+        sudo "${{ steps.configure-macports.outputs.prefix }}/bin/port" selfupdate || {
+          echo "Warning: Failed to run port selfupdate"
           exit 1
         }
+        echo "Fixing registry ownership to macports:macports..."
+        sudo chown -R macports:macports "${{ steps.configure-macports.outputs.prefix }}/var/macports/portdbpath"
         echo "Registry initialized successfully"
     - name: 'Sync Ports Tree (Git Sources)'
       if: steps.configure-macports.outputs.uses-git-sources == 'true'
