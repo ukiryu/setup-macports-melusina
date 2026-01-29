@@ -182,7 +182,14 @@ install_from_source()
 
 install_ports()
 {
-    ports_document "$1" | xargs -J '%' sudo port install '%'
+    local ports
+    ports=$(ports_document "$1")
+
+    if [ -n "${ports}" ]; then
+	printf '%s\n' "${ports}" | xargs -J '%' sudo port install '%'
+    else
+	wlog 'Info' 'No ports to install from configuration'
+    fi
 }
 
 experimental()
