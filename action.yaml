@@ -85,6 +85,13 @@ runs:
       with:
         path: ${{ steps.configure-macports.outputs.prefix }}
         key: install-macports-${{ steps.configure-macports.outputs.cache-key }}
+        exclude-paths: |
+          ${{ steps.configure-macports.outputs.prefix }}/var/macports/distfiles/*
+          ${{ steps.configure-macports.outputs.prefix }}/var/macports/build/*
+          ${{ steps.configure-macports.outputs.prefix }}/var/macports/software/*
+          ${{ steps.configure-macports.outputs.prefix }}/share/man/*
+          ${{ steps.configure-macports.outputs.prefix }}/share/doc/*
+          ${{ steps.configure-macports.outputs.prefix }}/share/locale/*
     - name: 'Fix File Ownership'
       shell: sh
       run: |
