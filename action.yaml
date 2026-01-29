@@ -163,6 +163,7 @@ runs:
         # Remove old sources from cache so we can clone fresh
         sudo rm -rf "${{ steps.configure-macports.outputs.prefix }}/var/macports/sources"
     - name: 'Fix File Ownership'
+      if: steps.cache-macports.outputs.cache-hit == 'true'
       shell: sh
       run: |
         ${{ github.action_path }}/fix_ownership "${{ steps.configure-macports.outputs.prefix }}"
@@ -175,6 +176,26 @@ runs:
         TOPLEVELDIR: ${{ github.action_path }}
         macports_prefix: ${{ steps.configure-macports.outputs.prefix }}
         macports_version: ${{ steps.configure-macports.outputs.version }}
+    - name: 'Initialize MacPorts Registry'
+      if: steps.cache-macports.outputs.cache-hit != 'true'
+      shell: sh
+      run: |
+        # The MacPorts installer creates the port command but registry.db
+        # is created lazily on first port command. Initialize it now.
+        echo "Initializing MacPorts registry..."
+        sudo ${{ steps.configure-macports.outputs.prefix }}/bin/port version || {
+          echo "Warning: Failed to initialize registry"
+          exit 1
+        }
+        echo "Registry initialized successfully"
+    - name: 'Fix File Ownership After Registry Init'
+      if: steps.cache-macports.outputs.cache-hit != 'true'
+      shell: sh
+      run: |
+        # sudo port version creates registry files as root, fix ownership
+        echo "Fixing registry ownership to macports:macports..."
+        sudo chown -R macports:macports ${{ steps.configure-macports.outputs.prefix }}/var/macports/portdbpath
+        echo "Ownership fixed"
     - name: 'Sync Ports Tree (Git Sources)'
       if: steps.configure-macports.outputs.uses-git-sources == 'true'
       shell: sh
