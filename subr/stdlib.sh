@@ -26,6 +26,14 @@ wlog()
     } 1>&2
 }
 
+# Debug logging function - only prints when DEBUG=true
+debug_log()
+{
+    if [ "${DEBUG}" = 'true' ]; then
+	wlog 'DEBUG' "$@"
+    fi
+}
+
 failwith()
 {
     local status

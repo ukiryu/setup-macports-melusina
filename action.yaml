@@ -89,6 +89,15 @@ inputs:
       Only use this if you trust the package sources.
     required: false
     default: 'true'
+  debug:
+    description: >-
+      Enable debug mode for troubleshooting.
+
+
+      When `true`, prints detailed debug messages showing what the action
+      is doing and where errors occur.
+    required: false
+    default: 'false'
 outputs:
   package:
     value: ${{ steps.configure-macports.outputs.package }}
@@ -138,6 +147,7 @@ runs:
         TOPLEVELDIR: ${{ github.action_path }}
         PREPEND_PATHS: ${{ inputs.prepend-paths }}
         SIGNATURE_CHECK: ${{ inputs.signature-check }}
+        DEBUG: ${{ inputs.debug }}
       run: |
         ${{ github.action_path }}/configure_macports "${{ inputs.parameters }}"
     - name: 'Cache MacPorts Installation'
