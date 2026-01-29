@@ -182,40 +182,44 @@ is_git_url()
 
 make_package()
 {
-    local macos version
+    local macos version config_file
 
     case $# in
 	0)
 	    macos=$(probe_macos)
-	    version=$(yq ".version || \"${macports_version}\"" < "${macports_prefix}/etc/setup-macports.yaml")
+	    config_file="${macports_prefix}/etc/setup-macports.yaml"
+	    if [ -f "${config_file}" ]; then
+		version=$(yq ".version // \"${macports_version}\"" < "${config_file}")
+	    else
+		version="${macports_version}"
+	    fi
 	    ;;
 	1)
 	    macos=$(probe_macos)
- 	    version=$(yq ".version || \"${macports_version}\"" < "$1")
+	    config_file="$1"
+	    if [ -f "${config_file}" ]; then
+		version=$(yq ".version // \"${macports_version}\"" < "${config_file}")
+	    else
+		version="${macports_version}"
+	    fi
 	    ;;
 	2)
 	    macos="$1"
 	    version="$2"
 	    ;;
     esac
+
+    # Ensure version is not empty
+    if [ -z "${version}" ]; then
+	wlog 'Warning' 'Version detection failed, using default %s' "${macports_version}"
+	version="${macports_version}"
+    fi
+
     known_macos_db | awk -F'-' "-vmacos=${macos}" "-vversion=${version}" '
 $2 == macos {
   printf("https://github.com/macports/macports-base/releases/download/v%s/MacPorts-%s-%s-%s.pkg", version, version, $1, $2)
 }
 '
-}
-
-# Check if a URL is a git URL (https://github.com/... or git://...)
-is_git_url()
-{
-    case "$1" in
-	https://github.com/*/*|git@github.com:*/*|git://github.com/*/*)
-	    return 0
-	    ;;
-	*)
-	    return 1
-	    ;;
-    esac
 }
 
 # End of file `macports.sh'
