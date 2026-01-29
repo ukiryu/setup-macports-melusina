@@ -45,6 +45,9 @@ jobs:
 
       - name: 'Validate installed MacPorts version'
         run: >-
+          echo "Checking port version output:"
+          port version
+          echo "Grepping for version string:"
           port version | grep -q "Version: ${{ matrix.version }}"
 
       - name: 'Validate transmitted MacPorts prefix'
