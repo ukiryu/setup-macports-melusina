@@ -40,27 +40,6 @@ inputs:
 
           See Also: sources.conf(5)
 
-          Git sources are supported. To use Git instead of rsync,
-          specify a GitHub URL and checkout the repository first:
-
-            sources: ['https://github.com/macports/macports-ports.git']
-
-          Example workflow:
-
-            - name: Checkout MacPorts ports tree
-              uses: actions/checkout@v6
-              with:
-                repository: macports/macports-ports
-                path: /opt/local/var/macports/sources/github.com/macports/macports-ports
-
-            - name: Setup MacPorts
-              uses: ./
-              with:
-                parameters: |
-                  sources: ['https://github.com/macports/macports-ports.git']
-
-          See: https://trac.macports.org/wiki/howto/SyncingWithGit
-
         ports: []
            The list of additional ports to install. Each term of the
            list is a dictionart with the mandatory 'name' holding the name
@@ -89,6 +68,11 @@ outputs:
 runs:
   using: 'composite'
   steps:
+    - name: 'Checkout MacPorts Ports Tree'
+      uses: actions/checkout@v6
+      with:
+        repository: macports/macports-ports
+        path: .macports-ports
     - name: 'Identify self'
       shell: sh
       run: |
