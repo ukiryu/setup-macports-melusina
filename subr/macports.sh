@@ -70,8 +70,8 @@ variants_document()
 .variants // {}
 | ( .select = .select // [] )
 | ( .select = select(.select | type == "!!seq").select // [.select] )
-| ( .deselect = .deselect || [] )
-| ( .deselect = select(.deselect | type == "!!seq").deselect || [.deselect] )
+| ( .deselect = (.deselect // [] | if type == "!!str" then [.] else . end) )
+| ( .deselect = select(.deselect | type == "!!seq").deselect else [[.deselect]] )
 | (
     (.select | .[] | "+" + . ),
     (.deselect | .[] | "-" + . )
