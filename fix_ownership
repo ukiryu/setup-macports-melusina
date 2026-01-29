@@ -72,7 +72,6 @@ main()
 {
     local OPTIND OPTION OPTARG
     local prefix
-    local current_user current_group
 
     ensure_macos
     prefix=${macports_prefix}
@@ -114,18 +113,21 @@ main()
     # Ensure macports user and group exist (important after cache restore)
     ensure_macports_usergroup
 
-    # Get current user and group
+    # Get current user
     current_user=$(id -u -n)
-    current_group=$(id -g -n)
 
-    wlog 'Info' "Fixing ownership of ${prefix} to ${current_user}:${current_group}"
+    # Add current user to macports group for access
+    if ! dscl . -read "/Groups/macports" | grep -q "GroupMembership: *${current_user}"; then
+	wlog 'Info' "Adding ${current_user} to macports group"
+	sudo dscl . -append "/Groups/macports" GroupMembership "${current_user}"
+    fi
 
-    # Fix ownership recursively
-    # This ensures that all files in the MacPorts installation
-    # are owned by the current user, which is necessary for
-    # port commands to work correctly after cache restore
+    wlog 'Info' "Fixing ownership of ${prefix} to macports:macports"
+
+    # Fix ownership recursively to macports:macports
+    # This is the correct ownership for MacPorts installation
     # Use -f to force through symlinks and handle special files
-    sudo chown -Rfh "${current_user}:${current_group}" "${prefix}"
+    sudo chown -Rfh "macports:macports" "${prefix}"
 
     # Also fix permissions to ensure files are readable/writable
     # Some cached files may have restrictive permissions
