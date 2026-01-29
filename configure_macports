@@ -126,13 +126,13 @@ main()
     # Write macports.conf with required settings
     macports_install -d -m 755 "${macports_prefix}/etc/macports"
     local macports_conf="${macports_prefix}/etc/macports/macports.conf"
-    macports_install -m 644 /dev/null "${macports_conf}"
 
-    # Set prefix (required for MacPorts to initialize)
-    printf 'prefix %s\n' "${macports_prefix}" >> "${macports_conf}"
-
-    # Set sources_conf to point to sources.conf
-    printf 'sources_conf %s/etc/macports/sources.conf\n' "${macports_prefix}" >> "${macports_conf}"
+    # Create fresh macports.conf file
+    # Use redirect to ensure we always create a new file
+    cat > "${macports_conf}" <<EOF
+prefix ${macports_prefix}
+sources_conf ${macports_prefix}/etc/macports/sources.conf
+EOF
 
     # Set signature_check based on SIGNATURE_CHECK environment variable
     if [ "${SIGNATURE_CHECK}" = 'true' ]; then
@@ -140,6 +140,13 @@ main()
     else
 	printf 'signature_check no\n' >> "${macports_conf}"
     fi
+
+    # Verify macports.conf was written correctly
+    if [ ! -s "${macports_conf}" ]; then
+	failwith 'Failed to write macports.conf at %s' "${macports_conf}"
+    fi
+
+    wlog 'Info' "Configured macports.conf at ${macports_conf}"
 
     # Check if using git sources for output
     # Auto-detect if .macports-ports exists in workspace
