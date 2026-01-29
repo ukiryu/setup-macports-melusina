@@ -8,6 +8,20 @@ on:
       - v1.*
 
 jobs:
+  shell-linter:
+    runs-on: 'ubuntu-latest'
+    name: 'Shell Linter'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 'Run ShellCheck'
+        uses: reviewdog/action-shellcheck@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          reporter: 'github-pr-review'
+          fail_on_error: true
+          check_all_files_with_shebang: true
+
   run-testsuite:
     strategy:
       matrix:
@@ -31,7 +45,7 @@ jobs:
             prefix: 'package'
     runs-on: '${{ matrix.os }}'
     name: 'Install MacPorts'
-    needs: 'run-testsuite'
+    needs: ['run-testsuite', 'shell-linter']
     steps:
       - uses: actions/checkout@v4
 
