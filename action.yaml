@@ -48,6 +48,12 @@ inputs:
            deselect for the list of deselected variants for this port.
     required: true
     default: ':no-value'
+  ports-verbose:
+    description: >-
+      Enable verbose mode for MacPorts ports operations (sync, install, etc.).
+      When set to 'true', port commands will use the -v flag for detailed output.
+    required: false
+    default: 'false'
 outputs:
   package:
     value: ${{ steps.configure-macports.outputs.package }}
@@ -137,4 +143,8 @@ runs:
         fi
 
         # Sync the ports tree (generates PortIndex)
-        ${{ steps.configure-macports.outputs.prefix }}/bin/port -v sync
+        if [ "${{ inputs.ports-verbose }}" = "true" ]; then
+          ${{ steps.configure-macports.outputs.prefix }}/bin/port -v sync
+        else
+          ${{ steps.configure-macports.outputs.prefix }}/bin/port sync
+        fi
