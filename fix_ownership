@@ -138,6 +138,16 @@ main()
     # Also fix permissions to ensure files are readable/writable
     # Some cached files may have restrictive permissions
     sudo chmod -R u+rw "${prefix}" 2>/dev/null || true
+
+    # Initialize MacPorts registry if it doesn't exist
+    # This creates the registry.db and all necessary directory structure
+    # Run after ownership is set to ensure proper permissions
+    local macports_bin="${prefix}/bin/port"
+    local registry_db="${prefix}/var/macports/portdbpath/registry/registry.db"
+    if [ -x "${macports_bin}" ] && [ ! -f "${registry_db}" ]; then
+	wlog 'Info' "Initializing MacPorts registry"
+	sudo "${macports_bin}" version
+    fi
 }
 
 main "$@"

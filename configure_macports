@@ -123,6 +123,12 @@ main()
     write_variants "${macports_prefix}/etc/setup-macports.yaml"
     write_sources "${macports_prefix}/etc/setup-macports.yaml"
 
+    # Create base directory structure for MacPorts
+    # Note: We create the parent directories but let MacPorts initialize
+    # its own registry structure through normal port commands
+    local portdbpath_parent="${macports_prefix}/var/macports"
+    sudo install -d -o $(id -u -n) -g $(id -g -n) -m 755 "${portdbpath_parent}"
+
     # Write macports.conf with required settings
     macports_install -d -m 755 "${macports_prefix}/etc/macports"
     local macports_conf="${macports_prefix}/etc/macports/macports.conf"
