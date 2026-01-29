@@ -147,6 +147,9 @@ main()
     if [ -x "${macports_bin}" ] && [ ! -f "${registry_db}" ]; then
 	wlog 'Info' "Initializing MacPorts registry"
 	sudo "${macports_bin}" version
+	# Fix ownership again since sudo port creates files as root
+	wlog 'Info' "Fixing registry ownership to macports:macports"
+	sudo chown -R macports:macports "${prefix}/var/macports/portdbpath"
     fi
 }
 
