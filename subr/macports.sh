@@ -66,17 +66,20 @@ variants_document()
     fi
 
     printf '# MacPorts system-wide global variants configuration file.\n'
-    yq '
-.variants // {}
-| ( .select = .select // [] )
-| ( .select = select(.select | type == "!!seq").select // [.select] )
-| ( .deselect = (.deselect // [] | (. | if type == "!!str" then [.] else . end)) )
-| ( .deselect = select(.deselect | type == "!!seq").deselect else [[.deselect]] )
-| (
-    (.select | .[] | "+" + . ),
-    (.deselect | .[] | "-" + . )
-  )
-' < "$1"
+
+    # Get select values
+    yq '.variants.select // []' "$1" | while read -r line; do
+	if [ -n "$line" ] && [ "$line" != "null" ]; then
+	    printf "+%s\n" "$line"
+	fi
+    done
+
+    # Get deselect value (single value, not an array in our config format)
+    local deselect_val
+    deselect_val=$(yq '.variants.deselect // ""' "$1" | head -1)
+    if [ -n "$deselect_val" ] && [ "$deselect_val" != "null" ]; then
+	printf -- "-%s\n" "$deselect_val"
+    fi
 }
 
 ports_document()
