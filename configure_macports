@@ -123,10 +123,14 @@ main()
     write_variants "${macports_prefix}/etc/setup-macports.yaml"
     write_sources "${macports_prefix}/etc/setup-macports.yaml"
 
-    # Write macports.conf with signature_check setting
+    # Write macports.conf with required settings
     macports_install -d -m 755 "${macports_prefix}/etc/macports"
     local macports_conf="${macports_prefix}/etc/macports/macports.conf"
     macports_install -m 644 /dev/null "${macports_conf}"
+
+    # Set sources_conf to point to sources.conf
+    printf 'sources_conf %s/etc/macports/sources.conf\n' "${macports_prefix}" >> "${macports_conf}"
+
     # Set signature_check based on SIGNATURE_CHECK environment variable
     if [ "${SIGNATURE_CHECK}" = 'true' ]; then
 	printf 'signature_check yes\n' >> "${macports_conf}"
