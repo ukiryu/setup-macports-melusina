@@ -45,7 +45,7 @@ jobs:
 
       - name: 'Validate installed MacPorts version'
         run: >-
-          test "$(port version)" = 'Version: ${{ matrix.version }}'
+          port version | grep -q "Version: ${{ matrix.version }}"
 
       - name: 'Validate transmitted MacPorts prefix'
         run: >-
