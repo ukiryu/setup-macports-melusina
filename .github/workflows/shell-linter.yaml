@@ -1,0 +1,23 @@
+name: 'Shell Linter'
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+jobs:
+  shell-linter:
+    runs-on: 'ubuntu-latest'
+    name: 'Shell Linter'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 'Run ShellCheck'
+        uses: reviewdog/action-shellcheck@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          reporter: 'github-pr-review'
+          fail_on_error: false
+          check_all_files_with_shebang: true
