@@ -122,31 +122,17 @@ write_sources()
     macports_install -d -m 755 "${macports_prefix}/etc/macports"
     macports_install -m 644 /dev/null "${macports_prefix}/etc/macports/sources.conf"
 
-    local config_file git_source
+    local config_file
     config_file="$1"
-    git_source="$2"
 
-    if [ -n "${git_source}" ]; then
-	# git-source parameter provided - use it
-	# Extract owner and repo from GitHub URL
-	# e.g., https://github.com/macports/macports-ports.git -> macports/macports-ports
-	local repo_owner repo_name local_path
-	repo_owner=$(printf '%s' "${git_source}" | sed -E 's|^.*/([^/]+)/([^/]+)(\.git)?$|\1|')
-	repo_name=$(printf '%s' "${git_source}" | sed -E 's|^.*/([^/]+)/([^/]+)(\.git)?$|\2|')
-
-	# Local path following MacPorts convention
-	local_path="${macports_prefix}/var/macports/sources/github.com/${repo_owner}/${repo_name}"
-
-	# Check if the repository has been checked out (e.g., by actions/checkout)
-	if [ -d "${local_path}/.git" ]; then
-	    wlog 'Info' "Using existing git sources at ${local_path}"
-	    printf 'file://%s/ [default]\n' "${local_path}" > "${macports_prefix}/etc/macports/sources.conf"
-	else
-	    wlog 'Warning' "Git sources specified but repository not found at ${local_path}"
-	    wlog 'Warning' "Please checkout the repository first using actions/checkout"
-	    wlog 'Warning' "Falling back to rsync sources"
-	    sources_document "${config_file}" > "${macports_prefix}/etc/macports/sources.conf"
-	fi
+    # Check if .macports-ports exists in workspace (auto-detect git sources)
+    if [ -n "${GITHUB_WORKSPACE}" ] && [ -d "${GITHUB_WORKSPACE}/.macports-ports/.git" ]; then
+	# Git sources detected in workspace
+	local local_path
+	local_path="${macports_prefix}/var/macports/sources/github.com/macports/macports-ports"
+	wlog 'Info' "Using git sources from workspace (will be moved to ${local_path})"
+	# Use rsync default for now, action will configure file:// after moving
+	sources_document "${config_file}" > "${macports_prefix}/etc/macports/sources.conf"
     elif [ -z "${config_file}" ] || [ "${config_file}" = ':no-value' ]; then
 	# No config file, use default sources
 	sources_document "${config_file}" > "${macports_prefix}/etc/macports/sources.conf"
@@ -161,21 +147,16 @@ write_sources()
 
 	if is_git_url "${first_source}"; then
 	    # Use git-based sources
-	    # Extract owner and repo from GitHub URL
 	    local repo_owner repo_name local_path
 	    repo_owner=$(printf '%s' "${first_source}" | sed -E 's|^.*/([^/]+)/([^/]+)(\.git)?$|\1|')
 	    repo_name=$(printf '%s' "${first_source}" | sed -E 's|^.*/([^/]+)/([^/]+)(\.git)?$|\2|')
-
-	    # Local path following MacPorts convention
 	    local_path="${macports_prefix}/var/macports/sources/github.com/${repo_owner}/${repo_name}"
 
-	    # Check if the repository has been checked out (e.g., by actions/checkout)
 	    if [ -d "${local_path}/.git" ]; then
 		wlog 'Info' "Using existing git sources at ${local_path}"
 		printf 'file://%s/ [default]\n' "${local_path}" > "${macports_prefix}/etc/macports/sources.conf"
 	    else
 		wlog 'Warning' "Git sources specified but repository not found at ${local_path}"
-		wlog 'Warning' "Please checkout the repository first using actions/checkout"
 		wlog 'Warning' "Falling back to rsync sources"
 		sources_document "${config_file}" > "${macports_prefix}/etc/macports/sources.conf"
 	    fi

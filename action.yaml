@@ -5,16 +5,6 @@ branding:
   icon: box
   color: blue
 inputs:
-  git-source:
-    description: >-
-      GitHub URL for the MacPorts ports tree. When provided, git-based
-      sources will be configured instead of rsync. The repository should
-      be checked out to the workspace before calling this action.
-
-      Example: https://github.com/macports/macports-ports.git
-
-      Default behavior: If not specified, uses rsync sources.
-    required: false
   parameters:
     description: |
       Pathname to a configuration file for the GHA-INSTALL-MACPORTS
@@ -113,7 +103,7 @@ runs:
       env:
         TOPLEVELDIR: ${{ github.action_path }}
       run: |
-        ${{ github.action_path }}/configure_macports "${{ inputs.parameters }}" "${{ inputs.git-source }}"
+        ${{ github.action_path }}/configure_macports "${{ inputs.parameters }}"
     - name: 'Cache MacPorts Installation'
       id: cache-macports
       uses: actions/cache@v4
@@ -137,20 +127,23 @@ runs:
       if: steps.configure-macports.outputs.uses-git-sources == 'true'
       shell: sh
       run: |
-        # Move macports-ports from workspace to correct location if it exists
-        if [ -d "${{ github.workspace }}/macports-ports/.git" ]; then
-          echo "Moving macports-ports from workspace to MacPorts sources directory..."
+        # Check if .macports-ports exists in workspace and move it
+        if [ -d "${{ github.workspace }}/.macports-ports/.git" ]; then
+          echo "Found .macports-ports in workspace, moving to MacPorts sources directory..."
 
           # Create target directory
           sudo mkdir -p "${{ steps.configure-macports.outputs.prefix }}/var/macports/sources/github.com/macports"
 
           # Move the repository
-          sudo mv "${{ github.workspace }}/macports-ports" "${{ steps.configure-macports.outputs.prefix }}/var/macports/sources/github.com/macports/"
+          sudo mv "${{ github.workspace }}/.macports-ports" "${{ steps.configure-macports.outputs.prefix }}/var/macports/sources/github.com/macports/macports-ports"
 
           # Fix ownership to current user
           sudo chown -R $(id -u -n):$(id -g -n) "${{ steps.configure-macports.outputs.prefix }}/var/macports/sources/github.com/macports/macports-ports"
 
-          echo "Repository moved successfully."
+          # Configure sources.conf to use the local git repository
+          printf 'file://%s/ [default]\n' "${{ steps.configure-macports.outputs.prefix }}/var/macports/sources/github.com/macports/macports-ports/" > "${{ steps.configure-macports.outputs.prefix }}/etc/macports/sources.conf"
+
+          echo "Repository moved and configured successfully."
         fi
 
         # Sync the ports tree (generates PortIndex)
