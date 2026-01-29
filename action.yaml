@@ -85,6 +85,10 @@ runs:
       with:
         path: ${{ steps.configure-macports.outputs.prefix }}
         key: install-macports-${{ steps.configure-macports.outputs.cache-key }}
+    - name: 'Fix File Ownership'
+      shell: sh
+      run: |
+        ${{ github.action_path }}/fix_ownership "${{ steps.configure-macports.outputs.prefix }}"
     - name: 'Install MacPorts'
       if: steps.cache-macports.outputs.cache-hit != 'true'
       shell: sh

@@ -1,0 +1,93 @@
+#!/bin/sh
+
+# fix_ownership — Fix file ownership after cache restore
+
+# Melusina Actions (https://github.com/melusina-org/setup-macports)
+# This file is part of Melusina Actions.
+#
+# Copyright © 2022–2023 Michaël Le Barbier
+# All rights reserved.
+
+# This file must be used under the terms of the MIT License.
+# This source file is licensed as described in the file LICENSE, which
+# you should have received as part of this distribution. The terms
+# are also available at https://opensource.org/licenses/MIT
+
+: ${TOPLEVELDIR:=$(git rev-parse --show-toplevel)}
+: ${subrdir:=${TOPLEVELDIR}/subr}
+
+. "${subrdir}/stdlib.sh"
+. "${subrdir}/macos.sh"
+. "${subrdir}/macports.sh"
+
+usage()
+{
+    if [ "$#" -gt 0 ]; then
+	wlog 'Failure' "$@"
+    fi
+    cat 1>&2 <<'EOF'
+Usage: fix_ownership [PREFIX]
+ Fix file ownership for MacPorts installation
+EOF
+    exit 64
+}
+
+main()
+{
+    local OPTIND OPTION OPTARG
+    local prefix
+    local current_user current_group
+
+    ensure_macos
+    prefix=${macports_prefix}
+    OPTIND=1
+    while getopts 'h' OPTION; do
+	case ${OPTION} in
+            h)
+		usage
+		;;
+            *)
+		usage '\047%s\047 Unsupported option.' "${OPTION}"
+		;;
+        esac
+    done
+
+    shift $(expr ${OPTIND} - 1)
+
+    case "$#" in
+	0)
+	    :
+	    ;;
+	1)
+	    prefix="$1"
+	    ;;
+	*)
+	    usage 'Too many arguments.'
+	    ;;
+    esac
+
+    if [ -z "${prefix}" ]; then
+	usage 'Prefix not specified and not available from environment.'
+    fi
+
+    if [ ! -d "${prefix}" ]; then
+	wlog 'Info' 'Prefix directory does not exist yet, nothing to fix.'
+	exit 0
+    fi
+
+    # Get current user and group
+    current_user=$(id -u -n)
+    current_group=$(id -g -n)
+
+    wlog 'Info' "Fixing ownership of ${prefix} to ${current_user}:${current_group}"
+
+    # Fix ownership recursively
+    # This ensures that all files in the MacPorts installation
+    # are owned by the current user, which is necessary for
+    # port commands to work correctly after cache restore
+    sudo chown -R "${current_user}:${current_group}" "${prefix}"
+}
+
+main "$@"
+
+# End of file `fix_ownership'
