@@ -82,6 +82,10 @@ outputs:
     value: ${{ steps.configure-macports.outputs.version }}
     description: >-
       The MacPorts version installed.
+  uses-git-sources:
+    value: ${{ steps.configure-macports.outputs.uses-git-sources }}
+    description: >-
+      Whether git-based sources are configured ('true' or 'false').
 runs:
   using: 'composite'
   steps:
@@ -119,3 +123,25 @@ runs:
         TOPLEVELDIR: ${{ github.action_path }}
         macports_prefix: ${{ steps.configure-macports.outputs.prefix }}
         macports_version: ${{ steps.configure-macports.outputs.version }}
+    - name: 'Sync Ports Tree (Git Sources)'
+      if: steps.configure-macports.outputs.uses-git-sources == 'true'
+      shell: sh
+      run: |
+        # Move macports-ports from workspace to correct location if it exists
+        if [ -d "${{ github.workspace }}/macports-ports/.git" ]; then
+          echo "Moving macports-ports from workspace to MacPorts sources directory..."
+
+          # Create target directory
+          sudo mkdir -p "${{ steps.configure-macports.outputs.prefix }}/var/macports/sources/github.com/macports"
+
+          # Move the repository
+          sudo mv "${{ github.workspace }}/macports-ports" "${{ steps.configure-macports.outputs.prefix }}/var/macports/sources/github.com/macports/"
+
+          # Fix ownership to current user
+          sudo chown -R $(id -u -n):$(id -g -n) "${{ steps.configure-macports.outputs.prefix }}/var/macports/sources/github.com/macports/macports-ports"
+
+          echo "Repository moved successfully."
+        fi
+
+        # Sync the ports tree (generates PortIndex)
+        ${{ steps.configure-macports.outputs.prefix }}/bin/port -v sync

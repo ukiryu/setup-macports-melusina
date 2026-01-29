@@ -121,6 +121,18 @@ main()
     write_variants "${macports_prefix}/etc/setup-macports.yaml"
     write_sources "${macports_prefix}/etc/setup-macports.yaml"
 
+    # Check if using git sources for output
+    local uses_git_sources='false'
+    if [ -f "${parameterfile}" -a -r "${parameterfile}" ]; then
+	local first_source
+	first_source=$(yq '.sources[0] // "rsync://rsync.macports.org/macports/release/tarballs/ports.tar"' < "${parameterfile}")
+	case "${first_source}" in
+	    https://github.com/*/*|git@github.com:*/*|git://github.com/*/*)
+		uses_git_sources='true'
+		;;
+	esac
+    fi
+
     if [ "${GITHUB_ACTIONS}" = 'true' ]; then
 	{
 	    printf 'prefix=%s\n' "${macports_prefix}"
@@ -128,6 +140,7 @@ main()
 	    printf 'cache-key=%sn\n' "$(cache_key)"
             printf 'package=%s\n' "$(make_package)"
             printf 'version=%s\n' "${macports_version}"
+            printf 'uses-git-sources=%s\n' "${uses_git_sources}"
 	} >> "${GITHUB_OUTPUT}"
         {
 	    printf '%s/bin\n' "${macports_prefix}"
