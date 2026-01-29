@@ -122,12 +122,18 @@ main()
 	sudo dscl . -append "/Groups/macports" GroupMembership "${current_user}"
     fi
 
+    # Verify macports user exists before changing ownership
+    if ! id macports >/dev/null 2>&1; then
+	wlog 'Warning' 'macports user does not exist, skipping ownership change'
+	exit 0
+    fi
+
     wlog 'Info' "Fixing ownership of ${prefix} to macports:macports"
 
     # Fix ownership recursively to macports:macports
     # This is the correct ownership for MacPorts installation
     # Use -f to force through symlinks and handle special files
-    sudo chown -Rfh "macports:macports" "${prefix}"
+    sudo chown -Rfh macports:macports "${prefix}"
 
     # Also fix permissions to ensure files are readable/writable
     # Some cached files may have restrictive permissions

@@ -127,10 +127,11 @@ main()
     macports_install -d -m 755 "${macports_prefix}/etc/macports"
     local macports_conf="${macports_prefix}/etc/macports/macports.conf"
 
-    # Create fresh macports.conf file
+    # Create fresh macports.conf file with all required settings
     # Use redirect to ensure we always create a new file
     cat > "${macports_conf}" <<EOF
 prefix ${macports_prefix}
+portdbpath ${macports_prefix}/var/macports/portdbpath
 sources_conf ${macports_prefix}/etc/macports/sources.conf
 EOF
 
