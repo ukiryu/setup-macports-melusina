@@ -182,6 +182,8 @@ runs:
       run: |
         # The MacPorts installer creates the port command but registry.db
         # is created lazily on first port command. Initialize it now.
+        echo "Creating portdbpath directory..."
+        sudo mkdir -p "${{ steps.configure-macports.outputs.prefix }}/var/macports/portdbpath"
         echo "Initializing MacPorts registry..."
         sudo ${{ steps.configure-macports.outputs.prefix }}/bin/port version || {
           echo "Warning: Failed to initialize registry"
