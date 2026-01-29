@@ -93,7 +93,7 @@ probe_architecture()
 	    echo "arm64"
 	    ;;
 	x86_64)
-	    echo "x64"
+	    echo "x86_64"
 	    ;;
 	*)
 	    echo "unknown"

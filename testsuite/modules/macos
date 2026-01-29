@@ -219,7 +219,7 @@ assert_that_x86_64_architecture_is_detected()
     mock_uname_x86_64
     arch=$(probe_architecture)
     set -e
-    test "${arch}" = 'x64'
+    test "${arch}" = 'x86_64'
 )
 
 assert_that_unknown_architecture_returns_unknown()
