@@ -22,7 +22,7 @@ jobs:
   install-macports:
     strategy:
       matrix:
-        os: ['macos-14', 'macos-15']
+        os: ['macos-14', 'macos-15', 'macos-26']
         version: ['2.11.5']
         prefix: ['local']
         source-type: ['git']
