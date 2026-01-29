@@ -161,7 +161,7 @@ runs:
           sudo mv "${{ github.workspace }}/.macports-ports" "${{ steps.configure-macports.outputs.prefix }}/var/macports/sources/github.com/macports/macports-ports"
 
           # Fix ownership to current user
-          sudo chown -R $(id -u -n):$(id -g -n) "${{ steps.configure-macports.outputs.prefix }}/var/macports/sources/github.com/macports/macports-ports"
+          sudo chown -R "$(id -u -n):$(id -g -n)" "${{ steps.configure-macports.outputs.prefix }}/var/macports/sources/github.com/macports/macports-ports"
 
           # Configure sources.conf to use the local git repository
           printf 'file://%s/ [default]\n' "${{ steps.configure-macports.outputs.prefix }}/var/macports/sources/github.com/macports/macports-ports/" > "${{ steps.configure-macports.outputs.prefix }}/etc/macports/sources.conf"
