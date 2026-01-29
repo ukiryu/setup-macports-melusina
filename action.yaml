@@ -196,9 +196,9 @@ runs:
         sudo mkdir -p "${{ steps.configure-macports.outputs.prefix }}/var/macports/portdbpath/registry"
         echo "Setting ownership to macports:macports..."
         sudo chown -R macports:macports "${{ steps.configure-macports.outputs.prefix }}/var/macports/portdbpath"
-        echo "Initializing MacPorts registry with port selfupdate..."
-        sudo "${{ steps.configure-macports.outputs.prefix }}/bin/port" selfupdate || {
-          echo "Warning: Failed to run port selfupdate"
+        echo "Initializing MacPorts registry with port sync..."
+        sudo "${{ steps.configure-macports.outputs.prefix }}/bin/port" sync || {
+          echo "Warning: Failed to run port sync"
           exit 1
         }
         echo "Fixing registry ownership to macports:macports..."
