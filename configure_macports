@@ -126,8 +126,8 @@ main()
     # Create base directory structure for MacPorts
     # Note: We create the parent directories but let MacPorts initialize
     # its own registry structure through normal port commands
-    local portdbpath_parent="${macports_prefix}/var/macports"
-    sudo install -d -o $(id -u -n) -g $(id -g -n) -m 755 "${portdbpath_parent}"
+    local portdbpath="${macports_prefix}/var/macports/portdbpath"
+    sudo install -d -o $(id -u -n) -g $(id -g -n) -m 755 "${portdbpath}"
 
     # Write macports.conf with required settings
     macports_install -d -m 755 "${macports_prefix}/etc/macports"
