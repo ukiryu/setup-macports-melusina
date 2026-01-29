@@ -98,6 +98,15 @@ inputs:
       is doing and where errors occur.
     required: false
     default: 'false'
+  checkout-git-sources:
+    description: >-
+      Checkout the macports/macports-ports git repository for use as local sources.
+      When `true` (default), the action checks out the git repository and
+      configures MacPorts to use it as the ports source.
+      When `false`, the git checkout is skipped and MacPorts will use
+      rsync sources (or whatever is configured in the parameters file).
+    required: false
+    default: 'true'
 outputs:
   package:
     value: ${{ steps.configure-macports.outputs.package }}
@@ -128,6 +137,7 @@ runs:
   using: 'composite'
   steps:
     - name: 'Checkout MacPorts Ports Tree'
+      if: ${{ inputs.checkout-git-sources == 'true' }}
       uses: actions/checkout@v6
       with:
         repository: macports/macports-ports
