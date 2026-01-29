@@ -128,6 +128,9 @@ main()
     local macports_conf="${macports_prefix}/etc/macports/macports.conf"
     macports_install -m 644 /dev/null "${macports_conf}"
 
+    # Set prefix (required for MacPorts to initialize)
+    printf 'prefix %s\n' "${macports_prefix}" >> "${macports_conf}"
+
     # Set sources_conf to point to sources.conf
     printf 'sources_conf %s/etc/macports/sources.conf\n' "${macports_prefix}" >> "${macports_conf}"
 
