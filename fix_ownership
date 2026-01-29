@@ -88,7 +88,12 @@ main()
     # This ensures that all files in the MacPorts installation
     # are owned by the current user, which is necessary for
     # port commands to work correctly after cache restore
-    sudo chown -R "${current_user}:${current_group}" "${prefix}"
+    # Use -f to force through symlinks and handle special files
+    sudo chown -Rfh "${current_user}:${current_group}" "${prefix}"
+
+    # Also fix permissions to ensure files are readable/writable
+    # Some cached files may have restrictive permissions
+    sudo chmod -R u+rw "${prefix}" 2>/dev/null || true
 }
 
 main "$@"

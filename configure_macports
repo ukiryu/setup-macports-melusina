@@ -43,13 +43,15 @@ experimental()
     :
 }
 
+: ${cache_version:=2}
+
 cache_key()
 {
     local macos arch
     macos=$(probe_macos)
     arch=$(probe_architecture)
     openssl ripemd160 "${macports_prefix}/etc/setup-macports.yaml"\
-	| awk -v "macos=${macos}" -v "arch=${arch}" '{print(macos "-" arch "-" $2)}'
+	| awk -v "macos=${macos}" -v "arch=${arch}" -v "ver=${cache_version}" '{print(macos "-" arch "-" ver "-" $2)}'
 }
 
 setup_path()
