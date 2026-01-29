@@ -94,6 +94,12 @@ runs:
       with:
         path: ${{ steps.configure-macports.outputs.prefix }}
         key: install-macports-${{ steps.configure-macports.outputs.cache-key }}
+    - name: 'Remove Sources from Cached Installation'
+      if: steps.cache-macports.outputs.cache-hit == 'true'
+      shell: sh
+      run: |
+        # Remove old sources from cache so we can clone fresh
+        sudo rm -rf "${{ steps.configure-macports.outputs.prefix }}/var/macports/sources"
     - name: 'Fix File Ownership'
       shell: sh
       run: |
