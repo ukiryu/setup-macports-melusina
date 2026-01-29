@@ -10,11 +10,11 @@ inputs:
       Pathname to a configuration file for the GHA-INSTALL-MACPORTS
       action. When no pathname is provided, the configuration is
       expected to be found under
-      
+
         .github/parameters/gha-install-macports.yaml
 
       It is however no error when this file is not present.
-      
+
       The configuration file is in YAML and has the following format:
 
         version: '2.11.5'
@@ -33,12 +33,33 @@ inputs:
           configuration.
 
           See Also: variants.conf(5).
-          
+
         sources: ['rsync://rsync.macports.org/macports/release/tarballs/ports.tar']
           The list of source locations for port definitions. The first
           entry of the list is marked with default.
 
           See Also: sources.conf(5)
+
+          Git sources are supported. To use Git instead of rsync,
+          specify a GitHub URL and checkout the repository first:
+
+            sources: ['https://github.com/macports/macports-ports.git']
+
+          Example workflow:
+
+            - name: Checkout MacPorts ports tree
+              uses: actions/checkout@v6
+              with:
+                repository: macports/macports-ports
+                path: /opt/local/var/macports/sources/github.com/macports/macports-ports
+
+            - name: Setup MacPorts
+              uses: ./
+              with:
+                parameters: |
+                  sources: ['https://github.com/macports/macports-ports.git']
+
+          See: https://trac.macports.org/wiki/howto/SyncingWithGit
 
         ports: []
            The list of additional ports to install. Each term of the
@@ -85,10 +106,6 @@ runs:
       with:
         path: ${{ steps.configure-macports.outputs.prefix }}
         key: install-macports-${{ steps.configure-macports.outputs.cache-key }}
-        exclude-paths: |
-          ${{ steps.configure-macports.outputs.prefix }}/var/macports/distfiles/*
-          ${{ steps.configure-macports.outputs.prefix }}/var/macports/build/*
-          ${{ steps.configure-macports.outputs.prefix }}/var/macports/software/*
     - name: 'Fix File Ownership'
       shell: sh
       run: |
