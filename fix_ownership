@@ -35,6 +35,39 @@ EOF
     exit 64
 }
 
+# Ensure macports user and group exist
+ensure_macports_usergroup()
+{
+    local user group gid
+
+    user='macports'
+    group='macports'
+    gid='502'
+
+    # Check if group exists, create if not
+    if ! dscl . -read "/Groups/${group}" > /dev/null 2>&1; then
+	wlog 'Info' "Creating MacPorts group: ${group}"
+	sudo dscl . -create "/Groups/${group}"
+	sudo dscl . -create "/Groups/${group}" PrimaryGroupID "${gid}"
+	sudo dscl . -create "/Groups/${group}" RealName "MacPorts"
+    else
+	wlog 'Info' "MacPorts group already exists: ${group}"
+    fi
+
+    # Check if user exists, create if not
+    if ! dscl . -read "/Users/${user}" > /dev/null 2>&1; then
+	wlog 'Info' "Creating MacPorts user: ${user}"
+	sudo dscl . -create "/Users/${user}"
+	sudo dscl . -create "/Users/${user}" PrimaryGroupID "${gid}"
+	sudo dscl . -create "/Users/${user}" RealName "MacPorts"
+	sudo dscl . -create "/Users/${user}" NFSHomeDirectory "${macports_prefix}/var/macports"
+	sudo dscl . -create "/Users/${user}" UserShell /usr/bin/false
+	sudo dscl . -append "/Groups/${group}" GroupMembership "${user}"
+    else
+	wlog 'Info' "MacPorts user already exists: ${user}"
+    fi
+}
+
 main()
 {
     local OPTIND OPTION OPTARG
@@ -77,6 +110,9 @@ main()
 	wlog 'Info' 'Prefix directory does not exist yet, nothing to fix.'
 	exit 0
     fi
+
+    # Ensure macports user and group exist (important after cache restore)
+    ensure_macports_usergroup
 
     # Get current user and group
     current_user=$(id -u -n)
