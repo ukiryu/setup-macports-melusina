@@ -184,20 +184,14 @@ runs:
         # is created lazily on first port command. Initialize it now.
         echo "Creating portdbpath directory..."
         sudo mkdir -p "${{ steps.configure-macports.outputs.prefix }}/var/macports/portdbpath"
+        echo "Setting ownership to macports:macports..."
+        sudo chown -R macports:macports "${{ steps.configure-macports.outputs.prefix }}/var/macports/portdbpath"
         echo "Initializing MacPorts registry..."
-        sudo ${{ steps.configure-macports.outputs.prefix }}/bin/port version || {
+        "${{ steps.configure-macports.outputs.prefix }}/bin/port" version || {
           echo "Warning: Failed to initialize registry"
           exit 1
         }
         echo "Registry initialized successfully"
-    - name: 'Fix File Ownership After Registry Init'
-      if: steps.cache-macports.outputs.cache-hit != 'true'
-      shell: sh
-      run: |
-        # sudo port version creates registry files as root, fix ownership
-        echo "Fixing registry ownership to macports:macports..."
-        sudo chown -R macports:macports ${{ steps.configure-macports.outputs.prefix }}/var/macports/portdbpath
-        echo "Ownership fixed"
     - name: 'Sync Ports Tree (Git Sources)'
       if: steps.configure-macports.outputs.uses-git-sources == 'true'
       shell: sh
