@@ -5,6 +5,16 @@ branding:
   icon: box
   color: blue
 inputs:
+  git-source:
+    description: >-
+      GitHub URL for the MacPorts ports tree. When provided, git-based
+      sources will be configured instead of rsync. The repository should
+      be checked out to the workspace before calling this action.
+
+      Example: https://github.com/macports/macports-ports.git
+
+      Default behavior: If not specified, uses rsync sources.
+    required: false
   parameters:
     description: |
       Pathname to a configuration file for the GHA-INSTALL-MACPORTS
@@ -103,7 +113,7 @@ runs:
       env:
         TOPLEVELDIR: ${{ github.action_path }}
       run: |
-        ${{ github.action_path }}/configure_macports "${{ inputs.parameters }}"
+        ${{ github.action_path }}/configure_macports "${{ inputs.parameters }}" "${{ inputs.git-source }}"
     - name: 'Cache MacPorts Installation'
       id: cache-macports
       uses: actions/cache@v4

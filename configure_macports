@@ -65,11 +65,12 @@ setup_path()
 main()
 {
     local OPTIND OPTION OPTARG
-    local macos package action
+    local macos package action git_source
 
     ensure_macos
     action='install'
     macos=$(probe_macos)
+    git_source=''  # Initialize git_source
     OPTIND=1
     while getopts 'x' OPTION; do
         case ${OPTION} in
@@ -100,6 +101,20 @@ main()
 		parameterfile=':no-value'
 	    fi
 	    ;;
+	2)
+	    if [ -f "$1" -a -r "$1" ]; then
+		parameterfile="$1"
+	    elif [ "$1" = ':no-value' -a -f "${parameterfile}" -a -r "${parameterfile}" ]; then
+		wlog 'Info' 'Use parameter file \047%s\047.' "${parameterfile}"
+	    elif [ "$1" = ':no-value' -a -f "${parameterfile_compat}" -a -r "${parameterfile_compat}" ]; then
+		wlog 'Info' 'Use parameter file \047%s\047.' "${parameterfile_compat}"
+		parameterfile="${parameterfile_compat}"
+	    else
+		parameterfile=':no-value'
+	    fi
+	    # Second argument is git source URL
+	    git_source="$2"
+	    ;;
 	*)
 	    usage 'Too many arguments.'
 	    ;;
@@ -119,11 +134,15 @@ main()
     sudo install -d -o $(id -u -n) -g $(id -g -n) -m 755 "${macports_prefix}"
     write_configuration "${parameterfile}" "${macports_prefix}/etc/setup-macports.yaml"
     write_variants "${macports_prefix}/etc/setup-macports.yaml"
-    write_sources "${macports_prefix}/etc/setup-macports.yaml"
+    write_sources "${macports_prefix}/etc/setup-macports.yaml" "${git_source}"
 
     # Check if using git sources for output
     local uses_git_sources='false'
-    if [ -f "${parameterfile}" -a -r "${parameterfile}" ]; then
+    if [ -n "${git_source}" ]; then
+	# git-source parameter was provided
+	uses_git_sources='true'
+    elif [ -f "${parameterfile}" -a -r "${parameterfile}" ]; then
+	# Check if sources in parameter file are git URLs
 	local first_source
 	first_source=$(yq '.sources[0] // "rsync://rsync.macports.org/macports/release/tarballs/ports.tar"' < "${parameterfile}")
 	case "${first_source}" in
