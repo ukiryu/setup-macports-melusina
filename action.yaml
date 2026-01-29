@@ -6,71 +6,97 @@ branding:
   color: blue
 inputs:
   parameters:
-    description: |
-      Pathname to a configuration file for the GHA-INSTALL-MACPORTS
-      action. When no pathname is provided, the configuration is
-      expected to be found under
+    description: >-
+      Pathname to a configuration file for MacPorts installation.
 
-        .github/parameters/gha-install-macports.yaml
 
-      It is however no error when this file is not present.
+      **Default:** `.github/parameters/setup-macports.yaml` (if it exists)
 
-      The configuration file is in YAML and has the following format:
 
-        version: '2.11.5'
-          The MacPorts version to install.
-        prefix: '/opt/local'
-          The installation prefix to install MacPortd to.
-          Currently the only supported value is '/opt/local'.
-        variants.select: []
-          The list of selected variants in the global variants
-          configuration.
+      When `:no-value` (the default), the action looks for a configuration file
+      at `.github/parameters/setup-macports.yaml` or `.github/parameters/gha-install-macports.yaml`.
 
-          See Also variants.conf(5).
 
-        variants.deselect: []
-          The list of deselected variants in the global variants
-          configuration.
+      **Configuration File Format:**
 
-          See Also: variants.conf(5).
+      ```yaml
+      version: '2.11.5'
+        # The MacPorts version to install.
+        # Default: '2.11.5'
 
-        sources: ['rsync://rsync.macports.org/macports/release/tarballs/ports.tar']
-          The list of source locations for port definitions. The first
-          entry of the list is marked with default.
+      prefix: '/opt/local'
+        # The installation prefix.
+        # Currently only '/opt/local' is supported.
+        # Default: '/opt/local'
 
-          See Also: sources.conf(5)
+      variants.select: []
+        # Selected variants in the global variants configuration.
+        # See: variants.conf(5)
 
-        ports: []
-           The list of additional ports to install. Each term of the
-           list is a dictionart with the mandatory 'name' holding the name
-           of the port to install, optional key 'select' for the list of
-           selected variants for this port, and the optional 'key'
-           deselect for the list of deselected variants for this port.
+      variants.deselect: []
+        # Deselected variants in the global variants configuration.
+        # See: variants.conf(5)
+
+      sources: ['rsync://rsync.macports.org/macports/release/tarballs/ports.tar']
+        # Source locations for port definitions.
+        # First entry is marked as [default].
+        # See: sources.conf(5)
+
+      ports: []
+        # Additional ports to install. Each item is a dictionary with:
+        # - name: (required) port name
+        # - select: (optional) list of selected variants
+        # - deselect: (optional) list of deselected variants
+      ```
     required: true
     default: ':no-value'
+  prepend-paths:
+    description: >-
+      Add MacPorts bin directories to PATH.
+
+
+      When `true` (default), adds `/opt/local/bin` and `/opt/local/sbin` to
+      the `$GITHUB_PATH` so subsequent steps can use `port` commands directly.
+
+
+      Set to `false` if you want to manage PATH manually.
+    required: false
+    default: 'true'
   ports-verbose:
     description: >-
-      Enable verbose mode for MacPorts ports operations (sync, install, etc.).
-      When set to 'true', port commands will use the -v flag for detailed output.
+      Enable verbose mode for MacPorts ports operations.
+
+
+      When `true`, port commands (like `port sync`) will use the `-v` flag
+      for detailed output showing what's being updated.
     required: false
     default: 'false'
 outputs:
   package:
     value: ${{ steps.configure-macports.outputs.package }}
     description: >-
-      The URL of the package used for the MacPorts installation.
+      The URL of the MacPorts installer package that was used (or will be used)
+      for installation.
   prefix:
     value: ${{ steps.configure-macports.outputs.prefix }}
     description: >-
-      The installation prefix for the MacPorts installation.
+      The installation prefix (e.g., `/opt/local`).
   version:
     value: ${{ steps.configure-macports.outputs.version }}
     description: >-
-      The MacPorts version installed.
+      The MacPorts version being installed.
   uses-git-sources:
     value: ${{ steps.configure-macports.outputs.uses-git-sources }}
     description: >-
-      Whether git-based sources are configured ('true' or 'false').
+      Whether git-based sources are being used instead of rsync (`'true'` or `'false'`).
+
+
+      When `true`, the action uses the local `.macports-ports` git repository
+      cloned from `macports/macports-ports`.
+  parameters:
+    value: ${{ steps.configure-macports.outputs.parameters }}
+    description: >-
+      Path to the configuration file used for this installation.
 runs:
   using: 'composite'
   steps:
@@ -92,6 +118,7 @@ runs:
       shell: sh
       env:
         TOPLEVELDIR: ${{ github.action_path }}
+        PREPEND_PATHS: ${{ inputs.prepend-paths }}
       run: |
         ${{ github.action_path }}/configure_macports "${{ inputs.parameters }}"
     - name: 'Cache MacPorts Installation'

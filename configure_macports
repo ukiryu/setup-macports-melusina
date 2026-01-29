@@ -15,6 +15,7 @@
 
 : ${TOPLEVELDIR:=$(git rev-parse --show-toplevel)}
 : ${subrdir:=${TOPLEVELDIR}/subr}
+: ${PREPEND_PATHS:='true'}
 
 . "${subrdir}/stdlib.sh"
 . "${subrdir}/macos.sh"
@@ -146,10 +147,13 @@ main()
             printf 'version=%s\n' "${macports_version}"
             printf 'uses-git-sources=%s\n' "${uses_git_sources}"
 	} >> "${GITHUB_OUTPUT}"
-        {
-	    printf '%s/bin\n' "${macports_prefix}"
-            printf '%s/sbin\n' "${macports_prefix}"
-	} >> "${GITHUB_PATH}"
+
+        if [ "${PREPEND_PATHS}" = 'true' ]; then
+	    {
+	        printf '%s/bin\n' "${macports_prefix}"
+                printf '%s/sbin\n' "${macports_prefix}"
+	    } >> "${GITHUB_PATH}"
+	fi
     fi 
 }
 
