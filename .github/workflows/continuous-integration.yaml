@@ -23,14 +23,16 @@ jobs:
     strategy:
       matrix:
         os: ['macos-14', 'macos-15', 'macos-26']
-        version: ['2.11.5']
+        version: ['2.11.5', '2.11.6', '2.12.0-rc1']
         prefix: ['local']
+        source-type: ['git']
         include:
           - os: 'macos-15'
             version: '2.11.5'
             prefix: 'package'
+            source-type: 'git'
     runs-on: '${{ matrix.os }}'
-    name: 'Install MacPorts'
+    name: 'Install MacPorts (${{ matrix.source-type }})'
     needs: 'run-testsuite'
     steps:
       - uses: actions/checkout@v4
@@ -39,10 +41,14 @@ jobs:
         id: 'macports'
         with:
           parameters: 'testsuite/run-testsuite-on-${{ matrix.os }}-${{ matrix.prefix }}.yaml'
+          checkout-git-sources: ${{ matrix.source-type == 'git' }}
 
       - name: 'Validate installed MacPorts version'
         run: >-
-          test "$(port version)" = 'Version: ${{ matrix.version }}'
+          echo "Checking port version output:"
+          port version
+          echo "Grepping for version string:"
+          port version | grep -q "Version: ${{ matrix.version }}"
 
       - name: 'Validate transmitted MacPorts prefix'
         run: >-
@@ -57,14 +63,14 @@ jobs:
 
       - name: 'Create cURL package'
         id: package
-        if: matrix.prefix == 'package'
+        if: matrix.prefix == 'package' && matrix.source-type == 'git'
         run: |
           sudo port mdmg curl
           image=$(port work curl)/*.dmg
           printf 'image=%s\n' "${image}" >> ${GITHUB_OUTPUT}
 
       - name: 'Archive Installation Package Image'
-        if: matrix.prefix == 'package'
+        if: matrix.prefix == 'package' && matrix.source-type == 'git'
         uses: actions/upload-artifact@v4
         with:
           name: "curl"

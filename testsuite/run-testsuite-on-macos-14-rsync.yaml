@@ -1,0 +1,11 @@
+# Testsuite configuration for rsync sources (no git clone)
+version: '2.11.5'
+prefix: '/opt/local'
+variants:
+  select:
+    - aqua
+    - metal
+  deselect: x11
+sources:
+  - 'rsync://rsync.macports.org/macports/release/tarballs/ports.tar'
+ports: []

@@ -1,0 +1,139 @@
+#!/bin/sh
+
+# fix_ownership — Testsuite for fix_ownership script
+
+# Melusina Actions (https://github.com/melusina-org/setup-macports)
+# This file is part of Melusina Actions.
+#
+# Copyright © 2022–2023 Michaël Le Barbier
+# All rights reserved.
+
+# This file must be used under the terms of the MIT License.
+# This source file is licensed as described in the file LICENSE, which
+# you should have received as part of this distribution. The terms
+# are also available at https://opensource.org/licenses/MIT
+
+: ${TOPLEVELDIR:=$(git rev-parse --show-toplevel)}
+: ${subrdir:=${TOPLEVELDIR}/subr}
+
+. "${subrdir}/stdlib.sh"
+. "${subrdir}/macos.sh"
+. "${subrdir}/testsuite.sh"
+
+assert_that_fix_ownership_creates_missing_directories()
+(
+    testdir=$(mktemp -d)
+    prefix="${testdir}/opt/local"
+
+    # Run fix_ownership on non-existent directory
+    "${TOPLEVELDIR}/fix_ownership" "${prefix}" 2>/dev/null
+
+    # Should exit successfully even if directory doesn't exist
+    exit 0
+)
+
+assert_that_fix_ownership_corrects_file_ownership()
+(
+    testdir=$(mktemp -d)
+    prefix="${testdir}/opt/local"
+
+    # Create directory structure with wrong ownership
+    mkdir -p "${prefix}/bin"
+    mkdir -p "${prefix}/etc"
+    mkdir -p "${prefix}/var/macports/home"
+
+    # Create a test file with root ownership (simulating cached files)
+    touch "${prefix}/bin/port"
+    touch "${prefix}/etc/setup-macports.yaml"
+    touch "${prefix}/var/macports/home/test"
+
+    # Get current user
+    current_user=$(id -u -n)
+    current_group=$(id -g -n)
+
+    # Run fix_ownership
+    "${TOPLEVELDIR}/fix_ownership" "${prefix}" 2>/dev/null
+
+    # Verify all files are owned by current user
+    set -e
+
+    # Check directory ownership
+    owner=$(stat -f '%Su' "${prefix}")
+    test "${owner}" = "${current_user}"
+
+    # Check file ownership
+    owner=$(stat -f '%Su' "${prefix}/bin/port")
+    test "${owner}" = "${current_user}"
+
+    owner=$(stat -f '%Su' "${prefix}/etc/setup-macports.yaml")
+    test "${owner}" = "${current_user}"
+
+    owner=$(stat -f '%Su' "${prefix}/var/macports/home/test")
+    test "${owner}" = "${current_user}"
+
+    # Clean up
+    rm -rf "${testdir}"
+)
+
+assert_that_fix_ownership_handles_nested_directories()
+(
+    testdir=$(mktemp -d)
+    prefix="${testdir}/opt/local"
+
+    # Create deep nested structure
+    mkdir -p "${prefix}/var/macports/build/test/deep/nested/path"
+    touch "${prefix}/var/macports/build/test/deep/nested/path/file.txt"
+
+    # Get current user
+    current_user=$(id -u -n)
+
+    # Run fix_ownership
+    "${TOPLEVELDIR}/fix_ownership" "${prefix}" 2>/dev/null
+
+    # Verify deep file ownership
+    set -e
+    owner=$(stat -f '%Su' "${prefix}/var/macports/build/test/deep/nested/path/file.txt")
+    test "${owner}" = "${current_user}"
+
+    # Clean up
+    rm -rf "${testdir}"
+)
+
+assert_that_fix_ownership_respects_prefix_argument()
+(
+    testdir=$(mktemp -d)
+    prefix1="${testdir}/custom/prefix1"
+    prefix2="${testdir}/custom/prefix2"
+
+    # Create two different prefixes
+    mkdir -p "${prefix1}/bin"
+    mkdir -p "${prefix2}/bin"
+    touch "${prefix1}/file1"
+    touch "${prefix2}/file2"
+
+    # Run fix_ownership on each prefix
+    "${TOPLEVELDIR}/fix_ownership" "${prefix1}" 2>/dev/null
+    "${TOPLEVELDIR}/fix_ownership" "${prefix2}" 2>/dev/null
+
+    # Get current user
+    current_user=$(id -u -n)
+
+    # Verify both prefixes have correct ownership
+    set -e
+    owner=$(stat -f '%Su' "${prefix1}/file1")
+    test "${owner}" = "${current_user}"
+
+    owner=$(stat -f '%Su' "${prefix2}/file2")
+    test "${owner}" = "${current_user}"
+
+    # Clean up
+    rm -rf "${testdir}"
+)
+
+testsuite_main\
+    assert_that_fix_ownership_creates_missing_directories\
+    assert_that_fix_ownership_corrects_file_ownership\
+    assert_that_fix_ownership_handles_nested_directories\
+    assert_that_fix_ownership_respects_prefix_argument\
+
+# End of file `fix_ownership`

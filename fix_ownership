@@ -1,0 +1,161 @@
+#!/bin/sh
+
+# fix_ownership — Fix file ownership after cache restore
+
+# Melusina Actions (https://github.com/melusina-org/setup-macports)
+# This file is part of Melusina Actions.
+#
+# Copyright © 2022–2023 Michaël Le Barbier
+# All rights reserved.
+
+# This file must be used under the terms of the MIT License.
+# This source file is licensed as described in the file LICENSE, which
+# you should have received as part of this distribution. The terms
+# are also available at https://opensource.org/licenses/MIT
+
+# Determine the script's directory to find subr
+# This works in both local development and GitHub Actions contexts
+script_dir=$(cd "$(dirname "$0")" && pwd)
+: ${TOPLEVELDIR:=${script_dir}}
+: ${subrdir:=${TOPLEVELDIR}/subr}
+
+. "${subrdir}/stdlib.sh"
+. "${subrdir}/macos.sh"
+. "${subrdir}/macports.sh"
+
+usage()
+{
+    if [ "$#" -gt 0 ]; then
+	wlog 'Failure' "$@"
+    fi
+    cat 1>&2 <<'EOF'
+Usage: fix_ownership [PREFIX]
+ Fix file ownership for MacPorts installation
+EOF
+    exit 64
+}
+
+# Ensure macports user and group exist
+ensure_macports_usergroup()
+{
+    local user group gid
+
+    user='macports'
+    group='macports'
+    gid='502'
+
+    # Check if group exists, create if not
+    if ! dscl . -read "/Groups/${group}" > /dev/null 2>&1; then
+	wlog 'Info' "Creating MacPorts group: ${group}"
+	sudo dscl . -create "/Groups/${group}"
+	sudo dscl . -create "/Groups/${group}" PrimaryGroupID "${gid}"
+	sudo dscl . -create "/Groups/${group}" RealName "MacPorts"
+    else
+	wlog 'Info' "MacPorts group already exists: ${group}"
+    fi
+
+    # Check if user exists, create if not
+    if ! dscl . -read "/Users/${user}" > /dev/null 2>&1; then
+	wlog 'Info' "Creating MacPorts user: ${user}"
+	sudo dscl . -create "/Users/${user}"
+	sudo dscl . -create "/Users/${user}" PrimaryGroupID "${gid}"
+	sudo dscl . -create "/Users/${user}" RealName "MacPorts"
+	sudo dscl . -create "/Users/${user}" NFSHomeDirectory "${macports_prefix}/var/macports"
+	sudo dscl . -create "/Users/${user}" UserShell /usr/bin/false
+	sudo dscl . -append "/Groups/${group}" GroupMembership "${user}"
+    else
+	wlog 'Info' "MacPorts user already exists: ${user}"
+    fi
+}
+
+main()
+{
+    local OPTIND OPTION OPTARG
+    local prefix
+
+    ensure_macos
+    prefix=${macports_prefix}
+    OPTIND=1
+    while getopts 'h' OPTION; do
+	case ${OPTION} in
+            h)
+		usage
+		;;
+            *)
+		usage '\047%s\047 Unsupported option.' "${OPTION}"
+		;;
+        esac
+    done
+
+    shift $(expr ${OPTIND} - 1)
+
+    case "$#" in
+	0)
+	    :
+	    ;;
+	1)
+	    prefix="$1"
+	    ;;
+	*)
+	    usage 'Too many arguments.'
+	    ;;
+    esac
+
+    if [ -z "${prefix}" ]; then
+	usage 'Prefix not specified and not available from environment.'
+    fi
+
+    if [ ! -d "${prefix}" ]; then
+	wlog 'Info' 'Prefix directory does not exist yet, nothing to fix.'
+	exit 0
+    fi
+
+    # Ensure macports user and group exist (important after cache restore)
+    ensure_macports_usergroup
+
+    # Get current user
+    current_user=$(id -u -n)
+
+    # Add current user to macports group for access
+    if ! dscl . -read "/Groups/macports" | grep -q "GroupMembership: *${current_user}"; then
+	wlog 'Info' "Adding ${current_user} to macports group"
+	sudo dscl . -append "/Groups/macports" GroupMembership "${current_user}"
+    fi
+
+    # Verify macports user exists before changing ownership
+    if ! id macports >/dev/null 2>&1; then
+	wlog 'Warning' 'macports user does not exist, skipping ownership change'
+	exit 0
+    fi
+
+    wlog 'Info' "Fixing ownership of ${prefix} to macports:macports"
+
+    # Fix ownership recursively to macports:macports
+    # This is the correct ownership for MacPorts installation
+    # Use -f to force through symlinks and handle special files
+    sudo chown -Rfh macports:macports "${prefix}"
+
+    # Also fix permissions to ensure files are readable/writable
+    # Some cached files may have restrictive permissions
+    sudo chmod -R u+rw "${prefix}" 2>/dev/null || true
+
+    # Initialize MacPorts registry if it doesn't exist
+    # The MacPorts installer creates the port command but registry.db
+    # is created lazily on first port command
+    local macports_bin="${prefix}/bin/port"
+    local registry_db="${prefix}/var/macports/portdbpath/registry/registry.db"
+    if [ -x "${macports_bin}" ] && [ ! -f "${registry_db}" ]; then
+	wlog 'Info' "Initializing MacPorts registry"
+	local init_output
+	init_output=$(sudo "${macports_bin}" version 2>&1) || {
+	    wlog 'Warning' "Failed to initialize MacPorts registry"
+	    wlog 'Warning' "port version output: ${init_output}"
+	}
+	# Fix ownership again since sudo port creates files as root
+	sudo chown -R macports:macports "${prefix}/var/macports/portdbpath" 2>/dev/null || true
+    fi
+}
+
+main "$@"
+
+# End of file `fix_ownership'

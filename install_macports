@@ -153,13 +153,21 @@ fetch_and_install_package()
     local pathname package
     package="$1"
     pathname="./${package##*/}"
-    
+
+    debug_log "Downloading package from: %s" "${package}"
     curl -L -o  "${pathname}" "${package}"\
 	|| failwith 'Cannot download package \047%s\047' "${package}"
 
+    debug_log "Creating prefix directory: %s" "${macports_prefix}"
     sudo install -d -o $(id -u -n) -g $(id -g -n) -m 755 "${macports_prefix}"
+
+    debug_log "Running installer: sudo installer -pkg %s -target /" "${pathname}"
     sudo installer -pkg "${pathname}" -target /
+
+    debug_log "Fixing ownership after install: sudo chown -R %s:%s %s" "$(id -u -n)" "$(id -g -n)" "${macports_prefix}"
     sudo chown -R $(id -u -n):$(id -g -n) "${macports_prefix}"
+
+    debug_log "Installer completed successfully"
 }
 
 install_from_source()
@@ -182,7 +190,18 @@ install_from_source()
 
 install_ports()
 {
-    ports_document "$1" | xargs -J '%' sudo port install '%'
+    local ports
+    debug_log "Reading ports configuration from: %s" "$1"
+    ports=$(ports_document "$1")
+    debug_log "Ports to install: '%s'" "${ports}"
+
+    if [ -n "${ports}" ]; then
+	debug_log "Installing ports: %s" "${ports}"
+	printf '%s\n' "${ports}" | xargs -J '%' sudo port install '%'
+    else
+	debug_log "No ports to install - ports list is empty"
+	wlog 'Info' 'No ports to install from configuration'
+    fi
 }
 
 experimental()
@@ -226,13 +245,18 @@ main()
 	'Configuration Summary'\
 	configuration_summary
 
+    debug_log "macports_prefix: %s" "${macports_prefix}"
     if [ "${macports_prefix}" = '/opt/local' ]; then
+	debug_log "Using PKG installer method"
 	fetch_and_install_package "$(make_package)"
     else
+	debug_log "Using source install method"
 	install_from_source
     fi
-	
+
+    debug_log "About to call install_ports"
     install_ports "${macports_prefix}/etc/setup-macports.yaml"
+    debug_log "install_ports completed"
 }
 
 main "$@"

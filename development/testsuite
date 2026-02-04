@@ -13,6 +13,18 @@
 # you should have received as part of this distribution. The terms
 # are also available at https://opensource.org/licenses/MIT
 
+# Skip testsuite on non-macOS platforms
+case "$(uname -s)" in
+    Darwin)
+	# Continue with testsuite
+	;;
+    *)
+	# On Linux (ubuntu-latest), just skip tests gracefully
+	echo "Testsuite skipped on $(uname -s)"
+	exit 0
+	;;
+esac
+
 : ${TOPLEVELDIR:=$(git rev-parse --show-toplevel)}
 : ${subrdir:=${TOPLEVELDIR}/subr}
 

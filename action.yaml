@@ -6,64 +6,142 @@ branding:
   color: blue
 inputs:
   parameters:
-    description: |
-      Pathname to a configuration file for the GHA-INSTALL-MACPORTS
-      action. When no pathname is provided, the configuration is
-      expected to be found under
-      
-        .github/parameters/gha-install-macports.yaml
+    description: >-
+      Pathname to a configuration file for MacPorts installation.
 
-      It is however no error when this file is not present.
-      
-      The configuration file is in YAML and has the following format:
 
-        version: '2.11.5'
-          The MacPorts version to install.
-        prefix: '/opt/local'
-          The installation prefix to install MacPortd to.
-          Currently the only supported value is '/opt/local'.
-        variants.select: []
-          The list of selected variants in the global variants
-          configuration.
+      **Default:** `.github/parameters/setup-macports.yaml` (if it exists)
 
-          See Also variants.conf(5).
 
-        variants.deselect: []
-          The list of deselected variants in the global variants
-          configuration.
+      When `:no-value` (the default), the action looks for a configuration file
+      at `.github/parameters/setup-macports.yaml` or `.github/parameters/gha-install-macports.yaml`.
 
-          See Also: variants.conf(5).
-          
-        sources: ['rsync://rsync.macports.org/macports/release/tarballs/ports.tar']
-          The list of source locations for port definitions. The first
-          entry of the list is marked with default.
 
-          See Also: sources.conf(5)
+      **Configuration File Format:**
 
-        ports: []
-           The list of additional ports to install. Each term of the
-           list is a dictionart with the mandatory 'name' holding the name
-           of the port to install, optional key 'select' for the list of
-           selected variants for this port, and the optional 'key'
-           deselect for the list of deselected variants for this port.
+      ```yaml
+      version: '2.11.5'
+        # The MacPorts version to install.
+        # Default: '2.11.5'
+
+      prefix: '/opt/local'
+        # The installation prefix.
+        # Currently only '/opt/local' is supported.
+        # Default: '/opt/local'
+
+      variants.select: []
+        # Selected variants in the global variants configuration.
+        # See: variants.conf(5)
+
+      variants.deselect: []
+        # Deselected variants in the global variants configuration.
+        # See: variants.conf(5)
+
+      sources: ['rsync://rsync.macports.org/macports/release/tarballs/ports.tar']
+        # Source locations for port definitions.
+        # First entry is marked as [default].
+        # See: sources.conf(5)
+
+      ports: []
+        # Additional ports to install. Each item is a dictionary with:
+        # - name: (required) port name
+        # - select: (optional) list of selected variants
+        # - deselect: (optional) list of deselected variants
+      ```
     required: true
     default: ':no-value'
+  prepend-paths:
+    description: >-
+      Add MacPorts bin directories to PATH.
+
+
+      When `true` (default), adds `/opt/local/bin` and `/opt/local/sbin` to
+      the `$GITHUB_PATH` so subsequent steps can use `port` commands directly.
+
+
+      Set to `false` if you want to manage PATH manually.
+    required: false
+    default: 'true'
+  ports-verbose:
+    description: >-
+      Enable verbose mode for MacPorts ports operations.
+
+
+      When `true`, port commands (like `port sync`) will use the `-v` flag
+      for detailed output showing what's being updated.
+    required: false
+    default: 'false'
+  signature-check:
+    description: >-
+      Verify signatures of downloaded packages.
+
+
+      When `true` (default), MacPorts will verify signatures of downloaded
+      packages before installation.
+
+
+      Set to `false` to bypass signature verification. This can be useful
+      if certain ports fail with "Failed to verify signature for archive"
+      errors.
+
+
+      **Warning:** Disabling signature verification reduces security.
+      Only use this if you trust the package sources.
+    required: false
+    default: 'true'
+  debug:
+    description: >-
+      Enable debug mode for troubleshooting.
+
+
+      When `true`, prints detailed debug messages showing what the action
+      is doing and where errors occur.
+    required: false
+    default: 'false'
+  checkout-git-sources:
+    description: >-
+      Checkout the macports/macports-ports git repository for use as local sources.
+      When `true` (default), the action checks out the git repository and
+      configures MacPorts to use it as the ports source.
+      When `false`, the git checkout is skipped and MacPorts will use
+      rsync sources (or whatever is configured in the parameters file).
+    required: false
+    default: 'true'
 outputs:
   package:
     value: ${{ steps.configure-macports.outputs.package }}
     description: >-
-      The URL of the package used for the MacPorts installation.
+      The URL of the MacPorts installer package that was used (or will be used)
+      for installation.
   prefix:
     value: ${{ steps.configure-macports.outputs.prefix }}
     description: >-
-      The installation prefix for the MacPorts installation.
+      The installation prefix (e.g., `/opt/local`).
   version:
     value: ${{ steps.configure-macports.outputs.version }}
     description: >-
-      The MacPorts version installed.
+      The MacPorts version being installed.
+  uses-git-sources:
+    value: ${{ steps.configure-macports.outputs.uses-git-sources }}
+    description: >-
+      Whether git-based sources are being used instead of rsync (`'true'` or `'false'`).
+
+
+      When `true`, the action uses the local `.macports-ports` git repository
+      cloned from `macports/macports-ports`.
+  parameters:
+    value: ${{ steps.configure-macports.outputs.parameters }}
+    description: >-
+      Path to the configuration file used for this installation.
 runs:
   using: 'composite'
   steps:
+    - name: 'Checkout MacPorts Ports Tree'
+      if: ${{ inputs.checkout-git-sources == 'true' }}
+      uses: actions/checkout@v6
+      with:
+        repository: macports/macports-ports
+        path: .macports-ports
     - name: 'Identify self'
       shell: sh
       run: |
@@ -77,6 +155,9 @@ runs:
       shell: sh
       env:
         TOPLEVELDIR: ${{ github.action_path }}
+        PREPEND_PATHS: ${{ inputs.prepend-paths }}
+        SIGNATURE_CHECK: ${{ inputs.signature-check }}
+        DEBUG: ${{ inputs.debug }}
       run: |
         ${{ github.action_path }}/configure_macports "${{ inputs.parameters }}"
     - name: 'Cache MacPorts Installation'
@@ -85,6 +166,17 @@ runs:
       with:
         path: ${{ steps.configure-macports.outputs.prefix }}
         key: install-macports-${{ steps.configure-macports.outputs.cache-key }}
+    - name: 'Remove Sources from Cached Installation'
+      if: steps.cache-macports.outputs.cache-hit == 'true'
+      shell: sh
+      run: |
+        # Remove old sources from cache so we can clone fresh
+        sudo rm -rf "${{ steps.configure-macports.outputs.prefix }}/var/macports/sources"
+    - name: 'Fix File Ownership'
+      if: steps.cache-macports.outputs.cache-hit == 'true'
+      shell: sh
+      run: |
+        ${{ github.action_path }}/fix_ownership "${{ steps.configure-macports.outputs.prefix }}"
     - name: 'Install MacPorts'
       if: steps.cache-macports.outputs.cache-hit != 'true'
       shell: sh
@@ -94,3 +186,50 @@ runs:
         TOPLEVELDIR: ${{ github.action_path }}
         macports_prefix: ${{ steps.configure-macports.outputs.prefix }}
         macports_version: ${{ steps.configure-macports.outputs.version }}
+    - name: 'Initialize MacPorts Registry'
+      if: steps.cache-macports.outputs.cache-hit != 'true'
+      shell: sh
+      run: |
+        # The MacPorts installer creates the port command but registry.db
+        # is created lazily on first port command. Initialize it now.
+        echo "Creating portdbpath directory structure..."
+        sudo mkdir -p "${{ steps.configure-macports.outputs.prefix }}/var/macports/portdbpath/registry"
+        echo "Setting ownership to macports:macports..."
+        sudo chown -R macports:macports "${{ steps.configure-macports.outputs.prefix }}/var/macports/portdbpath"
+        echo "Initializing MacPorts registry with port sync..."
+        sudo "${{ steps.configure-macports.outputs.prefix }}/bin/port" sync || {
+          echo "Warning: Failed to run port sync"
+          exit 1
+        }
+        echo "Fixing registry ownership to macports:macports..."
+        sudo chown -R macports:macports "${{ steps.configure-macports.outputs.prefix }}/var/macports/portdbpath"
+        echo "Registry initialized successfully"
+    - name: 'Sync Ports Tree (Git Sources)'
+      if: steps.configure-macports.outputs.uses-git-sources == 'true'
+      shell: sh
+      run: |
+        # Check if .macports-ports exists in workspace and move it
+        if [ -d "${{ github.workspace }}/.macports-ports/.git" ]; then
+          echo "Found .macports-ports in workspace, moving to MacPorts sources directory..."
+
+          # Create target directory
+          sudo mkdir -p "${{ steps.configure-macports.outputs.prefix }}/var/macports/sources/github.com/macports"
+
+          # Move the repository
+          sudo mv "${{ github.workspace }}/.macports-ports" "${{ steps.configure-macports.outputs.prefix }}/var/macports/sources/github.com/macports/macports-ports"
+
+          # Fix ownership to current user
+          sudo chown -R "$(id -u -n):$(id -g -n)" "${{ steps.configure-macports.outputs.prefix }}/var/macports/sources/github.com/macports/macports-ports"
+
+          # Configure sources.conf to use the local git repository
+          printf 'file://%s/ [default]\n' "${{ steps.configure-macports.outputs.prefix }}/var/macports/sources/github.com/macports/macports-ports/" > "${{ steps.configure-macports.outputs.prefix }}/etc/macports/sources.conf"
+
+          echo "Repository moved and configured successfully."
+        fi
+
+        # Sync the ports tree (generates PortIndex)
+        if [ "${{ inputs.ports-verbose }}" = "true" ]; then
+          ${{ steps.configure-macports.outputs.prefix }}/bin/port -v sync
+        else
+          ${{ steps.configure-macports.outputs.prefix }}/bin/port sync
+        fi

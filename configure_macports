@@ -15,6 +15,8 @@
 
 : ${TOPLEVELDIR:=$(git rev-parse --show-toplevel)}
 : ${subrdir:=${TOPLEVELDIR}/subr}
+: ${PREPEND_PATHS:='true'}
+: ${SIGNATURE_CHECK:='true'}
 
 . "${subrdir}/stdlib.sh"
 . "${subrdir}/macos.sh"
@@ -43,13 +45,15 @@ experimental()
     :
 }
 
+: ${cache_version:=2}
+
 cache_key()
 {
     local macos arch
     macos=$(probe_macos)
     arch=$(probe_architecture)
     openssl ripemd160 "${macports_prefix}/etc/setup-macports.yaml"\
-	| awk -v "macos=${macos}" -v "arch=${arch}" '{print(macos "-" arch "-" $2)}'
+	| awk -v "macos=${macos}" -v "arch=${arch}" -v "ver=${cache_version}" '{print(macos "-" arch "-" ver "-" $2)}'
 }
 
 setup_path()
@@ -119,6 +123,48 @@ main()
     write_variants "${macports_prefix}/etc/setup-macports.yaml"
     write_sources "${macports_prefix}/etc/setup-macports.yaml"
 
+    # Write macports.conf with required settings
+    macports_install -d -m 755 "${macports_prefix}/etc/macports"
+    local macports_conf="${macports_prefix}/etc/macports/macports.conf"
+
+    # Create fresh macports.conf file with all required settings
+    # Use redirect to ensure we always create a new file
+    cat > "${macports_conf}" <<EOF
+prefix ${macports_prefix}
+portdbpath ${macports_prefix}/var/macports/portdbpath
+sources_conf ${macports_prefix}/etc/macports/sources.conf
+EOF
+
+    # Set signature_check based on SIGNATURE_CHECK environment variable
+    if [ "${SIGNATURE_CHECK}" = 'true' ]; then
+	printf 'signature_check yes\n' >> "${macports_conf}"
+    else
+	printf 'signature_check no\n' >> "${macports_conf}"
+    fi
+
+    # Verify macports.conf was written correctly
+    if [ ! -s "${macports_conf}" ]; then
+	failwith 'Failed to write macports.conf at %s' "${macports_conf}"
+    fi
+
+    wlog 'Info' "Configured macports.conf at ${macports_conf}"
+
+    # Check if using git sources for output
+    # Auto-detect if .macports-ports exists in workspace
+    local uses_git_sources='false'
+    if [ -d "${GITHUB_WORKSPACE}/.macports-ports/.git" ]; then
+	uses_git_sources='true'
+    elif [ -f "${parameterfile}" -a -r "${parameterfile}" ]; then
+	# Check if sources in parameter file are git URLs
+	local first_source
+	first_source=$(yq '.sources[0] // "rsync://rsync.macports.org/macports/release/tarballs/ports.tar"' < "${parameterfile}")
+	case "${first_source}" in
+	    https://github.com/*/*|git@github.com:*/*|git://github.com/*/*)
+		uses_git_sources='true'
+		;;
+	esac
+    fi
+
     if [ "${GITHUB_ACTIONS}" = 'true' ]; then
 	{
 	    printf 'prefix=%s\n' "${macports_prefix}"
@@ -126,11 +172,15 @@ main()
 	    printf 'cache-key=%sn\n' "$(cache_key)"
             printf 'package=%s\n' "$(make_package)"
             printf 'version=%s\n' "${macports_version}"
+            printf 'uses-git-sources=%s\n' "${uses_git_sources}"
 	} >> "${GITHUB_OUTPUT}"
-        {
-	    printf '%s/bin\n' "${macports_prefix}"
-            printf '%s/sbin\n' "${macports_prefix}"
-	} >> "${GITHUB_PATH}"
+
+        if [ "${PREPEND_PATHS}" = 'true' ]; then
+	    {
+	        printf '%s/bin\n' "${macports_prefix}"
+                printf '%s/sbin\n' "${macports_prefix}"
+	    } >> "${GITHUB_PATH}"
+	fi
     fi 
 }
 
